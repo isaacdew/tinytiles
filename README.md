@@ -1,0 +1,1 @@
+A simple CLI tool for stripping MBTiles of data not used by your map style.json.

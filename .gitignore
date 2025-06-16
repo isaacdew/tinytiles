@@ -1,0 +1,4 @@
+*.mbtiles
+style.json
+.vscode
+**/.DS_Store
