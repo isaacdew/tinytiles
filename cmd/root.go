@@ -69,6 +69,10 @@ var gzipped bool
 
 var outputFile string
 
+var removedAttributesMap map[string]bool
+
+var removedLayersMap map[string]bool
+
 func Execute() {
 	rootCmd.Flags().StringVarP(&keepAttributes, "keep-attributes", "a", "", "Write some Regex to specify which attributes should be kept no matter what.")
 	rootCmd.Flags().StringVarP(&keepLayers, "keep-layers", "l", "", "Write some Regex to specify which layers should be kept no matter what.")
@@ -107,17 +111,7 @@ func ProcessTiles(args []string) {
 	}
 
 	// Unique the list of attributes
-	seen := make(map[string]bool)
-	result := []string{}
-
-	for _, attribute := range attributes {
-		if !seen[attribute] {
-			seen[attribute] = true
-			result = append(result, attribute)
-		}
-	}
-
-	attributes = result
+	attributes = uniqueSlice(attributes)
 
 	fmt.Println("Processing tiles...")
 
@@ -131,7 +125,7 @@ func ProcessTiles(args []string) {
 	defer db.Close()
 
 	// Delete old output if it exists
-	err = deleteOutputIfExists(outputFile)
+	err = deleteFileIfExists(outputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -225,6 +219,10 @@ func ProcessTiles(args []string) {
 		}
 	}
 
+	// Initialize maps
+	removedLayersMap = make(map[string]bool)
+	removedAttributesMap = make(map[string]bool)
+
 	// Begin processing tiles
 	totalTiles := getTotalTiles(db)
 
@@ -278,6 +276,9 @@ func ProcessTiles(args []string) {
 			for _, layer := range layers {
 				// If the source layer is not in the style.json, don't add it to the new DB
 				if !containsSourceLayer(layer.Name) {
+					if !removedLayersMap[layer.Name] {
+						removedLayersMap[layer.Name] = true
+					}
 					continue
 				}
 
@@ -344,6 +345,11 @@ func ProcessTiles(args []string) {
 
 	reducedByPercentage := (float32(originalFileSize-outputFileSize) / float32(originalFileSize)) * 100
 
+	removedLayers := mapKeys(removedLayersMap)
+	removedAttributes := mapKeys(removedAttributesMap)
+
+	fmt.Printf("Removed layers: %s\n", strings.Join(removedLayers, ", "))
+	fmt.Printf("Removed attributes: %s\n", strings.Join(removedAttributes, ", "))
 	fmt.Printf("Input file size: %d bytes\n", originalFileSize)
 	fmt.Printf("Output file size: %d bytes\n", outputFileSize)
 	fmt.Printf("MBTiles reduced by %g%%\n", reducedByPercentage)
@@ -359,6 +365,9 @@ func processFeatures(layer *mvt.Layer) *mvt.Layer {
 
 		for property, value := range feature.Properties {
 			if !containsAttr(property) {
+				if !removedAttributesMap[property] {
+					removedAttributesMap[property] = true
+				}
 				continue
 			}
 
@@ -435,38 +444,4 @@ func getTotalTiles(db *sql.DB) int {
 	}
 
 	return total
-}
-
-func deleteOutputIfExists(file string) error {
-	err := os.Remove(file)
-
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-
-		return err
-	}
-
-	return nil
-}
-
-func copyFile(source string, dest string) error {
-	sourceFile, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, sourceFile)
-	if err != nil {
-		return err
-	}
-	return nil
 }

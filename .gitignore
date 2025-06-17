@@ -1,4 +1,4 @@
 *.mbtiles
-style.json
+*.json
 .vscode
 **/.DS_Store
