@@ -51,7 +51,7 @@ TODO:
 var rootCmd = &cobra.Command{
 	Use:   "tinytiles [mbtiles] [style.json]",
 	Short: "TinyTiles is a CLI tool for minimizing MBTiles.",
-	Long:  "TinyTiles is a CLI tool for minimizing MBTiles. It uses your style JSON to scan the MBTiles for unnecessary tile attributes and compresses the tiles using Gzip.",
+	Long:  "TinyTiles is a CLI tool for minimizing MBTiles. It uses your style JSON to remove unused tile attributes and layers then compresses the tiles using Gzip.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		ProcessTiles(args)
